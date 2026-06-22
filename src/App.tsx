@@ -857,7 +857,28 @@ export default function App() {
       ctx.scale(imageScale, imageScale);
       ctx.rotate((imageRotation * Math.PI) / 180);
 
-      ctx.drawImage(imgObj, -pw / 2, -ph / 2, pw, ph);
+      // Math for 'object-fit: cover' behavior on canvas
+      const imgW = imgObj.naturalWidth || imgObj.width;
+      const imgH = imgObj.naturalHeight || imgObj.height;
+      const targetRatio = pw / ph;
+      const imgRatio = imgW / imgH;
+
+      let sx = 0;
+      let sy = 0;
+      let sWidth = imgW;
+      let sHeight = imgH;
+
+      if (imgRatio > targetRatio) {
+        // Image is wider than target. Fit height, crop width sides.
+        sWidth = imgH * targetRatio;
+        sx = (imgW - sWidth) / 2;
+      } else {
+        // Image is taller than target. Fit width, crop height sides.
+        sHeight = imgW / targetRatio;
+        sy = (imgH - sHeight) / 2;
+      }
+
+      ctx.drawImage(imgObj, sx, sy, sWidth, sHeight, -pw / 2, -ph / 2, pw, ph);
       ctx.restore();
 
       // Reset filters so stickers, frames, text are not sepia/darkened
