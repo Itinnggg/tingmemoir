@@ -152,6 +152,12 @@ export default function App() {
   const [image, setImage] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   
+  // Crop & position states
+  const [imageScale, setImageScale] = useState<number>(1);
+  const [imageOffsetX, setImageOffsetX] = useState<number>(0);
+  const [imageOffsetY, setImageOffsetY] = useState<number>(0);
+  const [imageRotation, setImageRotation] = useState<number>(0);
+  
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"FILTERS" | "ADJUST" | "STICKERS" | "FRAMES" | "TEXT">("FILTERS");
   
@@ -212,7 +218,11 @@ export default function App() {
       stickers: JSON.parse(JSON.stringify(stickers)),
       captionText,
       captionFont,
-      storyText
+      storyText,
+      imageScale,
+      imageOffsetX,
+      imageOffsetY,
+      imageRotation
     };
     setUndoStack(prev => [...prev.slice(-30), currentState]); // Keep max 30
     setRedoStack([]); // Clear redo
@@ -232,7 +242,11 @@ export default function App() {
       stickers: JSON.parse(JSON.stringify(stickers)),
       captionText,
       captionFont,
-      storyText
+      storyText,
+      imageScale,
+      imageOffsetX,
+      imageOffsetY,
+      imageRotation
     };
     setRedoStack(prev => [...prev, current]);
 
@@ -246,6 +260,10 @@ export default function App() {
     setCaptionText(previous.captionText);
     setCaptionFont(previous.captionFont);
     setStoryText(previous.storyText);
+    if (previous.imageScale !== undefined) setImageScale(previous.imageScale);
+    if (previous.imageOffsetX !== undefined) setImageOffsetX(previous.imageOffsetX);
+    if (previous.imageOffsetY !== undefined) setImageOffsetY(previous.imageOffsetY);
+    if (previous.imageRotation !== undefined) setImageRotation(previous.imageRotation);
 
     // Filter out last element from undo
     setUndoStack(prev => prev.slice(0, -1));
@@ -265,7 +283,11 @@ export default function App() {
       stickers: JSON.parse(JSON.stringify(stickers)),
       captionText,
       captionFont,
-      storyText
+      storyText,
+      imageScale,
+      imageOffsetX,
+      imageOffsetY,
+      imageRotation
     };
     setUndoStack(prev => [...prev, current]);
 
@@ -279,6 +301,10 @@ export default function App() {
     setCaptionText(next.captionText);
     setCaptionFont(next.captionFont);
     setStoryText(next.storyText);
+    if (next.imageScale !== undefined) setImageScale(next.imageScale);
+    if (next.imageOffsetX !== undefined) setImageOffsetX(next.imageOffsetX);
+    if (next.imageOffsetY !== undefined) setImageOffsetY(next.imageOffsetY);
+    if (next.imageRotation !== undefined) setImageRotation(next.imageRotation);
 
     // Filter out last element from redo
     setRedoStack(prev => prev.slice(0, -1));
@@ -646,10 +672,24 @@ export default function App() {
 
       // Apply CSS-matched vintage lookup on canvas context!
       const filterStr = getFilterStyle();
+
+      // Draw image centering inside clip with translations/scaling/rotation
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(px, py, pw, ph);
+      ctx.clip();
+      
       ctx.filter = filterStr;
 
-      // Draw image centering inside clip
-      ctx.drawImage(imgObj, px, py, pw, ph);
+      const cx = px + pw / 2;
+      const cy = py + ph / 2;
+      ctx.translate(cx, cy);
+      ctx.translate((imageOffsetX / 100) * pw, (imageOffsetY / 100) * ph);
+      ctx.scale(imageScale, imageScale);
+      ctx.rotate((imageRotation * Math.PI) / 180);
+
+      ctx.drawImage(imgObj, -pw / 2, -ph / 2, pw, ph);
+      ctx.restore();
 
       // Reset filters so stickers, frames, text are not sepia/darkened
       ctx.filter = "none";
@@ -927,8 +967,12 @@ export default function App() {
                       src={image}
                       alt="Nostalgic snapshot"
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-all"
-                      style={{ filter: getFilterStyle() }}
+                      className="w-full h-full object-cover transition-all duration-300"
+                      style={{ 
+                        filter: getFilterStyle(),
+                        transform: `translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${imageScale}) rotate(${imageRotation}deg)`,
+                        transformOrigin: "center center"
+                      }}
                     />
 
                     {/* Film Grain Layer (Opacity matches grain values) */}
@@ -1470,6 +1514,118 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+
+                <div className="border-t border-analog-outline-variant/20 pt-4"></div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-serif font-bold text-md text-analog-primary">Pemangkasan & Posisi Foto</h3>
+                    <p className="font-mono text-[11px] text-analog-on-surface-variant/70 mt-1">
+                      Perbesar (Zoom) atau geser posisi foto Anda di dalam bingkai polaroid agar terlihat sempurna.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 bg-stone-50/50 border border-analog-outline-variant/15 p-4 rounded-xl">
+                    {/* Zoom / Scale Slider */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-analog-on-surface-variant font-technical text-[11px] tracking-wider">
+                        <span>PERBESAR FOTO (ZOOM)</span>
+                        <span className="font-mono font-bold">{imageScale.toFixed(2)}x</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="4"
+                          step="0.05"
+                          value={imageScale}
+                          onChange={(e) => {
+                            setImageScale(parseFloat(e.target.value));
+                          }}
+                          className="w-full accent-[#5c5b30] h-1.5 bg-analog-surface-highest rounded-lg cursor-pointer animate-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Geser Horizontal Slider */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-analog-on-surface-variant font-technical text-[11px] tracking-wider">
+                        <span>GESER HORIZONTAL (X)</span>
+                        <span className="font-mono font-bold">{imageOffsetX > 0 ? `+${imageOffsetX}` : imageOffsetX}%</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="range"
+                          min="-100"
+                          max="100"
+                          step="1"
+                          value={imageOffsetX}
+                          onChange={(e) => {
+                            setImageOffsetX(parseInt(e.target.value));
+                          }}
+                          className="w-full accent-[#735a3a] h-1.5 bg-analog-surface-highest rounded-lg cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Geser Vertikal Slider */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-analog-on-surface-variant font-technical text-[11px] tracking-wider">
+                        <span>GESER VERTIKAL (Y)</span>
+                        <span className="font-mono font-bold">{imageOffsetY > 0 ? `+${imageOffsetY}` : imageOffsetY}%</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="range"
+                          min="-100"
+                          max="100"
+                          step="1"
+                          value={imageOffsetY}
+                          onChange={(e) => {
+                            setImageOffsetY(parseInt(e.target.value));
+                          }}
+                          className="w-full accent-[#735a3a] h-1.5 bg-analog-surface-highest rounded-lg cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rotasi Foto Slider */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-analog-on-surface-variant font-technical text-[11px] tracking-wider">
+                        <span>ROTASI FOTO (DERAJAT)</span>
+                        <span className="font-mono font-bold">{imageRotation}°</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="range"
+                          min="-180"
+                          max="180"
+                          step="1"
+                          value={imageRotation}
+                          onChange={(e) => {
+                            setImageRotation(parseInt(e.target.value));
+                          }}
+                          className="w-full accent-stone-700 h-1.5 bg-analog-surface-highest rounded-lg cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          saveStateToUndo();
+                          setImageScale(1);
+                          setImageOffsetX(0);
+                          setImageOffsetY(0);
+                          setImageRotation(0);
+                        }}
+                        className="w-full text-center py-2 text-[10px] text-stone-700 hover:bg-[#5c5b30]/10 hover:text-[#5c5b30] border border-stone-200 font-technical uppercase font-bold tracking-widest rounded-lg transition-colors cursor-pointer"
+                      >
+                        RESET POSISI & POTONG
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1589,6 +1745,28 @@ export default function App() {
           </nav>
         </div>
       </main>
+
+      {/* Footer Area with developer credits and Discord URL */}
+      <footer className="w-full text-center py-6 border-t border-analog-outline-variant/15 mt-auto bg-stone-50/20 relative z-10 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-analog-on-surface-variant/70 font-mono text-xs mb-2">
+        <div className="flex items-center gap-1.5 font-technical text-stone-500 uppercase tracking-widest text-[9px]">
+          <span>© {new Date().getFullYear()} TINGMEMOIR. ALL RIGHTS RESERVED.</span>
+        </div>
+        <div className="hidden sm:inline-block w-1 h-1 rounded-full bg-stone-300"></div>
+        <div className="flex items-center gap-2">
+          <span className="font-technical uppercase text-[9px] text-stone-500 tracking-wider">Discord:</span>
+          <a
+            href="https://discord.com/users/1tinnggg_"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 hover:bg-[#5865F2] hover:text-white hover:shadow-2xs transition-all font-mono font-bold text-xs"
+          >
+            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 16 16">
+              <path d="M13.545 2.907a13.227 13.227 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.569-.406.818a12.217 12.217 0 0 0-3.66 0 8.27 8.27 0 0 0-.412-.818.054.054 0 0 0-.052-.025 13.166 13.166 0 0 0-3.259 1.011.041.041 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032c.001.014.01.026.021.033a13.119 13.119 0 0 0 3.975 2.01.053.053 0 0 0 .059-.019c.307-.42.576-.87.802-1.34a.05.05 0 0 0-.028-.069 8.22 8.22 0 0 1-1.848-.88.05.05 0 0 1-.005-.083c.125-.094.25-.192.368-.292a.051.051 0 0 1 .053-.007c2.614 1.196 5.432 1.196 8.01 0a.051.051 0 0 1 .054.006c.12.1.243.198.369.293a.05.05 0 0 1-.006.083 8.35 8.35 0 0 1-1.847.88.05.05 0 0 0-.027.07c.23.47.5.92.802 1.34a.053.053 0 0 0 .06.02 13.067 13.067 0 0 0 3.975-2.012.05.05 0 0 0 .02-.032c.35-3.415-.558-6.417-2.61-9.115a.037.037 0 0 0-.02-.018zM5.14 9.018c-.766 0-1.397-.704-1.397-1.571s.614-1.571 1.397-1.571c.783 0 1.405.707 1.397 1.57 0 .868-.614 1.572-1.397 1.572zm5.72 0c-.766 0-1.397-.704-1.397-1.571s.614-1.571 1.397-1.571c.783 0 1.405.707 1.397 1.57 0 .868-.614 1.572-1.397 1.572z"/>
+            </svg>
+            <span>iggirafi</span>
+          </a>
+        </div>
+      </footer>
 
       {/* Upload Actions & Take snapshot FAB Overlay Area */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
