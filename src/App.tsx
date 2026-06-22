@@ -207,12 +207,12 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const setVideoRef = (el: HTMLVideoElement | null) => {
+  const setVideoRef = React.useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
-    if (el && streamRef.current) {
+    if (el && streamRef.current && el.srcObject !== streamRef.current) {
       el.srcObject = streamRef.current;
     }
-  };
+  }, []);
 
   // Save state helper for undo/redo
   const saveStateToUndo = () => {
