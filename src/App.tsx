@@ -471,12 +471,19 @@ export default function App() {
     return `${baseFilter} brightness(${brightnessVal}) contrast(${contrastVal}) sepia(${sepiaVal || "0"}) ${warmthFilter}`.trim();
   };
 
-  // Sticker dragging engine
-  const handleStickerMouseDown = (id: string, e: MouseEvent) => {
+  // Sticker dragging engine (Unified Pointer Events with setPointerCapture)
+  const handleStickerPointerDown = (id: string, e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
     setActiveStickerId(id);
     const sticker = stickers.find(s => s.id === id);
     if (!sticker) return;
+
+    // Capture pointers (mouse/touch) natively to prevent gesture conflicts and handle drift smoothly
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {
+      console.warn("setPointerCapture failed:", err);
+    }
 
     setStickerDragState({
       id,
@@ -487,8 +494,8 @@ export default function App() {
     });
   };
 
-  const handleGlobalMouseMove = (e: MouseEvent) => {
-    if (!stickerDragState || !imageContainerRef.current) return;
+  const handleStickerPointerMove = (id: string, e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stickerDragState || stickerDragState.id !== id || !imageContainerRef.current) return;
 
     const bounds = imageContainerRef.current.getBoundingClientRect();
     const deltaX = (e.clientX - stickerDragState.startX) / bounds.width * 100;
@@ -496,8 +503,8 @@ export default function App() {
 
     setStickers(prev =>
       prev.map(s => {
-        if (s.id === stickerDragState.id) {
-          // Keep within logical boundaries
+        if (s.id === id) {
+          // Keep within logical boundaries [0, 100]
           const newX = Math.min(100, Math.max(0, stickerDragState.startStickerX + deltaX));
           const newY = Math.min(100, Math.max(0, stickerDragState.startStickerY + deltaY));
           return { ...s, x: newX, y: newY };
@@ -507,62 +514,17 @@ export default function App() {
     );
   };
 
-  const handleGlobalMouseUp = () => {
-    if (stickerDragState) {
+  const handleStickerPointerUp = (id: string, e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (err) {
+      // safe fallback
+    }
+    if (stickerDragState && stickerDragState.id === id) {
       saveStateToUndo();
       setStickerDragState(null);
     }
   };
-
-  // Touch handlers for mobile
-  const handleStickerTouchStart = (id: string, e: TouchEvent) => {
-    e.stopPropagation();
-    setActiveStickerId(id);
-    const sticker = stickers.find(s => s.id === id);
-    if (!sticker || e.touches.length === 0) return;
-
-    setStickerDragState({
-      id,
-      startX: e.touches[0].clientX,
-      startY: e.touches[0].clientY,
-      startStickerX: sticker.x,
-      startStickerY: sticker.y
-    });
-  };
-
-  const handleGlobalTouchMove = (e: TouchEvent) => {
-    if (!stickerDragState || !imageContainerRef.current || e.touches.length === 0) return;
-
-    const bounds = imageContainerRef.current.getBoundingClientRect();
-    const deltaX = (e.touches[0].clientX - stickerDragState.startX) / bounds.width * 100;
-    const deltaY = (e.touches[0].clientY - stickerDragState.startY) / bounds.height * 100;
-
-    setStickers(prev =>
-      prev.map(s => {
-        if (s.id === stickerDragState.id) {
-          const newX = Math.min(100, Math.max(0, stickerDragState.startStickerX + deltaX));
-          const newY = Math.min(100, Math.max(0, stickerDragState.startStickerY + deltaY));
-          return { ...s, x: newX, y: newY };
-        }
-        return s;
-      })
-    );
-  };
-
-  useEffect(() => {
-    if (stickerDragState) {
-      window.addEventListener("mousemove", handleGlobalMouseMove);
-      window.addEventListener("mouseup", handleGlobalMouseUp);
-      window.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
-      window.addEventListener("touchend", handleGlobalMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", handleGlobalMouseMove);
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-      window.removeEventListener("touchmove", handleGlobalTouchMove);
-      window.removeEventListener("touchend", handleGlobalMouseUp);
-    };
-  }, [stickerDragState]);
 
   // Operations for stickers
   const placeSticker = (type: "emoji" | "stamp" | "sticker-sheet" | "watercolor-cat", value: string) => {
@@ -821,45 +783,45 @@ export default function App() {
       <div className="grain-overlay"></div>
 
       {/* Top Header */}
-      <header className="bg-analog-bg border-b border-analog-outline-variant/30 sticky top-0 z-50 h-16 flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
+      <header className="bg-analog-bg border-b border-analog-outline-variant/30 sticky top-0 z-50 h-16 flex items-center justify-between px-3 md:px-6 gap-2">
+        <div className="flex items-center gap-1 sm:gap-3 shrink-0">
           <button
             onClick={executeUndo}
             disabled={undoStack.length === 0}
-            className={`p-2 rounded-full hover:bg-analog-surface-highest/50 transition-colors active:scale-90 ${undoStack.length === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100"}`}
+            className={`p-1.5 sm:p-2 rounded-full hover:bg-analog-surface-highest/50 transition-colors active:scale-90 ${undoStack.length === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100"}`}
             title="Undo"
           >
-            <Undo className="w-5 h-5 text-analog-primary" />
+            <Undo className="w-4 h-4 sm:w-5 sm:h-5 text-analog-primary" />
           </button>
           <button
             onClick={executeRedo}
             disabled={redoStack.length === 0}
-            className={`p-2 rounded-full hover:bg-analog-surface-highest/50 transition-colors active:scale-90 ${redoStack.length === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100"}`}
+            className={`p-1.5 sm:p-2 rounded-full hover:bg-analog-surface-highest/50 transition-colors active:scale-90 ${redoStack.length === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100"}`}
             title="Redo"
           >
-            <Redo className="w-5 h-5 text-analog-primary" />
+            <Redo className="w-4 h-4 sm:w-5 sm:h-5 text-analog-primary" />
           </button>
         </div>
 
-        {/* LOGO */}
-        <div className="flex flex-col items-center select-none absolute left-1/2 -translate-x-1/2">
-          <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-analog-primary">
+        {/* LOGO - Responsive static content-driven layout on mobile, absolute centering on desktop */}
+        <div className="flex flex-col items-center select-none text-center px-1 md:absolute md:left-1/2 md:-translate-x-1/2 md:transform min-w-0 shrink z-10">
+          <h1 className="font-serif text-lg min-[380px]:text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-analog-primary leading-none">
             TINGMEMOIR
           </h1>
-          <span className="font-technical text-[9px] tracking-widest text-analog-on-surface-variant/40 -mt-1 uppercase">
+          <span className="font-technical text-[7px] min-[380px]:text-[8px] md:text-[9px] tracking-widest text-analog-on-surface-variant/40 -mt-0.5 md:-mt-1 uppercase truncate max-w-[125px] min-[380px]:max-w-none">
             Vintage Chemistry Editor
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* AI Sparkles Button */}
           {image && (
             <button
               onClick={triggerAICaption}
               disabled={isAnalyzing}
-              className={`flex items-center gap-1 bg-amber-100/70 border border-amber-200 text-amber-900 active:scale-95 duration-75 px-3 py-1.5 rounded-lg text-xs font-semibold ${isAnalyzing ? "animate-pulse" : ""}`}
+              className={`flex items-center gap-1 bg-amber-100/70 border border-amber-200 text-amber-900 active:scale-95 duration-75 px-2 py-1.5 sm:px-3 rounded-lg text-[10px] sm:text-xs font-semibold ${isAnalyzing ? "animate-pulse" : ""}`}
             >
-              <Sparkles className="w-4 h-4 text-amber-700 fill-amber-700 animate-spin-slow" />
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 fill-amber-700 animate-spin-slow" />
               <span className="hidden sm:inline">AI CAPTION</span>
             </button>
           )}
@@ -868,10 +830,10 @@ export default function App() {
           <button
             onClick={downloadArt}
             disabled={isSaving || !image}
-            className={`bg-[#5c5b30] text-white hover:bg-[#44431b] hover:shadow-md transition-all font-technical text-xs px-5 py-2 rounded-lg tracking-widest active:scale-95 duration-100 flex items-center gap-1.5 ${!image ? "opacity-40 cursor-not-allowed" : ""}`}
+            className={`bg-[#5c5b30] text-white hover:bg-[#44431b] hover:shadow-md transition-all font-technical text-[10px] sm:text-xs px-3 py-1.5 sm:px-5 sm:py-2 rounded-lg tracking-wider sm:tracking-widest active:scale-95 duration-100 flex items-center gap-1 sm:gap-1.5 ${!image ? "opacity-40 cursor-not-allowed" : ""}`}
             id="save-button"
           >
-            {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             {isSaving ? "SAVING..." : "SAVE"}
           </button>
         </div>
@@ -955,7 +917,7 @@ export default function App() {
               {/* Photo Area Container */}
               <div 
                 ref={imageContainerRef}
-                className={`bg-[#ebe1cf] w-full overflow-hidden relative border border-analog-outline-variant/10 shadow-inner group transition-all duration-300 ${ASPECT_RATIO_CONFIGS[aspectRatio].imgClass}`}
+                className={`bg-[#ebe1cf] w-full overflow-hidden relative border border-[#1f1b10]/10 shadow-inner group transition-all duration-300 ${ASPECT_RATIO_CONFIGS[aspectRatio].imgClass}`}
               >
                 
                 {image ? (
@@ -993,12 +955,15 @@ export default function App() {
                     {/* Floating stickers canvas */}
                     {stickers.map((sticker) => {
                       const isActive = activeStickerId === sticker.id;
+                      const isDraggingThis = stickerDragState && stickerDragState.id === sticker.id;
                       return (
                         <div
                           key={sticker.id}
-                          onMouseDown={(e) => handleStickerMouseDown(sticker.id, e)}
-                          onTouchStart={(e) => handleStickerTouchStart(sticker.id, e)}
-                          className={`absolute cursor-move select-none flex items-center justify-center ${isActive ? "ring-2 ring-red-500/60 ring-offset-1 ring-offset-white/80 p-1.5" : ""}`}
+                          onPointerDown={(e) => handleStickerPointerDown(sticker.id, e)}
+                          onPointerMove={(e) => handleStickerPointerMove(sticker.id, e)}
+                          onPointerUp={(e) => handleStickerPointerUp(sticker.id, e)}
+                          onPointerCancel={(e) => handleStickerPointerUp(sticker.id, e)}
+                          className={`absolute cursor-move select-none flex items-center justify-center touch-none transition-shadow ${isActive ? "ring-2 ring-red-500/60 ring-offset-1 ring-offset-white/80 p-3 sm:p-1.5" : "p-2 hover:bg-white/10 rounded"}`}
                           style={{
                             left: `${sticker.x}%`,
                             top: `${sticker.y}%`,
@@ -1007,7 +972,7 @@ export default function App() {
                           }}
                         >
                           {sticker.type === "emoji" ? (
-                            <span className="text-3xl filter drop-shadow-[#1f1b10]/20 drop-shadow-md">{sticker.value}</span>
+                            <span className="text-3xl filter drop-shadow-[#1f1b10]/20 drop-shadow-md select-none pointer-events-none">{sticker.value}</span>
                           ) : sticker.type === "watercolor-cat" ? (
                             /* Watercolor Cat Cutout rendered on preview frame */
                             <div className="w-16 h-16 overflow-hidden rounded bg-transparent select-none pointer-events-none filter drop-shadow-md relative">
@@ -1025,7 +990,7 @@ export default function App() {
                               />
                             </div>
                           ) : (
-                            <div className="border-2 border-red-700/60 font-semibold px-2.5 py-0.5 text-[#ba1a1a] tracking-widest text-[9px] uppercase font-technical bg-white/95 rounded shadow-sm relative overflow-hidden flex items-center justify-center select-none rotate-2">
+                            <div className="border-2 border-red-700/60 font-semibold px-2.5 py-0.5 text-[#ba1a1a] tracking-widest text-[9px] uppercase font-technical bg-white/95 rounded shadow-sm relative overflow-hidden flex items-center justify-center select-none rotate-2 pointer-events-none">
                               {/* Slit grunge overlay on vintage stamps */}
                               <div className="absolute top-0 bottom-0 left-1/4 w-[1px] bg-[#fff8f0]/40 rotate-12"></div>
                               <div className="absolute top-0 bottom-0 left-3/4 w-[1px] bg-[#fff8f0]/40 -rotate-12"></div>
@@ -1033,33 +998,33 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Control handle popup on click */}
-                          {isActive && (
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-stone-900 text-white rounded-lg shadow-xl px-2 py-1 text-[11px] z-50 animate-fade-in divide-x divide-stone-700">
+                          {/* Control handle popup on click (hidden while dragging so user sees final position perfectly) */}
+                          {isActive && !isDraggingThis && (
+                            <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none">
                               <button
                                 onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, -0.15); }}
-                                className="px-1 hover:text-amber-200"
+                                className="px-2 py-0.5 sm:px-1 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
                                 title="Smaller"
                               >
                                 -
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, 0.15); }}
-                                className="px-1.5 hover:text-amber-200"
+                                className="px-2 py-0.5 sm:px-1.5 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
                                 title="Larger"
                               >
                                 +
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); rotateSticker(sticker.id); }}
-                                className="px-2 hover:text-amber-200 flex items-center"
+                                className="px-2.5 py-0.5 sm:px-2 hover:text-amber-200 active:scale-125 touch-manipulation flex items-center text-sm sm:text-[11px]"
                                 title="Rotate"
                               >
                                 🔄
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); removeSticker(sticker.id); }}
-                                className="px-2 hover:text-red-400 text-red-300 flex items-center"
+                                className="px-2.5 py-0.5 sm:px-2 hover:text-red-400 text-red-300 active:scale-125 touch-manipulation flex items-center text-sm sm:text-[11px]"
                                 title="Discard"
                               >
                                 🗑️
