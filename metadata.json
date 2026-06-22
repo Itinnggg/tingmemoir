@@ -1,0 +1,6 @@
+{
+  "name": "Analog Memoirs",
+  "description": "A sensory-rich retro photo editor featuring tactile physical-digital interfaces, vintage film development filters, grain controls, cute watercolor stickers, and AI-powered nostalgic caption generation.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
