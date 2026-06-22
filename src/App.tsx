@@ -207,6 +207,13 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
 
+  const setVideoRef = (el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el && streamRef.current) {
+      el.srcObject = streamRef.current;
+    }
+  };
+
   // Save state helper for undo/redo
   const saveStateToUndo = () => {
     const currentState = {
@@ -886,13 +893,20 @@ export default function App() {
         <div className="flex-grow flex flex-col items-center justify-center w-full lg:w-3/5 max-w-2xl">
           
           {/* Main Photo Editor Frame Container */}
-          <div className="relative w-full aspect-[4/5] flex flex-col items-center justify-center bg-analog-surface-dim/20 border border-analog-outline-variant/20 rounded-2xl overflow-hidden shadow-inner p-4 md:p-6">
+          <div 
+            onPointerDown={() => setActiveStickerId(null)}
+            className="relative w-full aspect-[4/5] flex flex-col items-center justify-center bg-analog-surface-dim/20 border border-analog-outline-variant/20 rounded-2xl overflow-hidden shadow-inner p-4 md:p-6"
+          >
             
 
 
             {/* Polaroid Frame Wrapper */}
             <div 
               ref={containerRef}
+              onPointerDown={(e) => {
+                // Tapping outside stickers clears selection
+                setActiveStickerId(null);
+              }}
               className={`polaroid-frame relative flex flex-col items-center justify-start transition-all duration-300 rotate-1 overflow-visible ${ASPECT_RATIO_CONFIGS[aspectRatio].frameClass} ${
                 frameType === "CLASSIC" ? "bg-white text-analog-on-surface" :
                 frameType === "FILMSTRIP" ? "bg-stone-900 border-zinc-950 text-white" :
@@ -913,7 +927,7 @@ export default function App() {
                   <>
                     {/* Live Camera Stream */}
                     <video
-                      ref={videoRef}
+                      ref={setVideoRef}
                       autoPlay
                       playsInline
                       className="w-full h-full object-cover transition-all"
@@ -1298,6 +1312,26 @@ export default function App() {
             <div className="w-[90%] bg-analog-surface-low border border-analog-outline-variant/30 px-6 py-4 rounded-xl mt-4 text-[#48473c] font-mono text-xs text-center border-dashed leading-relaxed max-w-lg shadow-sm">
               <span className="text-red-700/60 font-bold tracking-widest mr-1 sm:mr-2">CAPTION JOURNAL:</span>
               "{storyText}"
+            </div>
+          )}
+
+          {/* Quick Action: Take Another Photo or Upload */}
+          {image && !isCameraActive && (
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={() => document.getElementById("polaroid-file-input")?.click()}
+                className="px-3.5 py-2 border border-analog-outline-variant/50 text-stone-700 hover:bg-[#5c5b30]/10 hover:text-[#5c5b30] hover:border-[#5c5b30]/40 rounded-xl text-[10px] sm:text-xs font-bold font-technical tracking-widest uppercase transition-all duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 bg-white shadow-xs"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Ganti/Upload
+              </button>
+              <button
+                onClick={startCamera}
+                className="px-4 py-2 bg-[#5c5b30] text-white hover:bg-[#44431b] rounded-xl text-[10px] sm:text-xs font-bold font-technical tracking-widest uppercase transition-all duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 hover:shadow-md"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Ambil Foto Ulang
+              </button>
             </div>
           )}
 
