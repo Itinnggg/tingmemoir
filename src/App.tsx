@@ -888,57 +888,7 @@ export default function App() {
           {/* Main Photo Editor Frame Container */}
           <div className="relative w-full aspect-[4/5] flex flex-col items-center justify-center bg-analog-surface-dim/20 border border-analog-outline-variant/20 rounded-2xl overflow-hidden shadow-inner p-4 md:p-6">
             
-            {/* Real Video element for active camera snapshot */}
-            <AnimatePresence>
-              {isCameraActive && (
-                <div className="absolute inset-0 bg-black z-30 flex flex-col items-center justify-center animate-fade-in">
-                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-40">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={toggleCameraFacingMode}
-                        className="bg-white/10 hover:bg-white/20 text-white border border-white/10 backdrop-blur-md font-technical text-[10px] uppercase font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-                        title="Flip Front/Back Lens"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Lens: {cameraFacingMode === "user" ? "Selfie" : "Main"}
-                      </button>
 
-                      <button
-                        onClick={toggleCameraMirror}
-                        className="bg-white/10 hover:bg-white/20 text-white border border-white/10 backdrop-blur-md font-technical text-[10px] uppercase font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-                        title="Toggle Mirrored Output"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Mirror: {isCameraMirrored ? "ON" : "OFF"}
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={stopCamera}
-                      className="bg-white/10 hover:bg-white/20 p-2 rounded-full text-white backdrop-blur-md active:scale-90 cursor-pointer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-cover"
-                    style={{ transform: isCameraMirrored ? "scaleX(-1)" : "none" }}
-                  ></video>
-                  <div className="absolute bottom-8 flex flex-col items-center gap-2 z-40">
-                    <button
-                      onClick={capturePhoto}
-                      className="w-20 h-20 bg-amber-50 rounded-full border-8 border-analog-primary flex items-center justify-center transition-transform active:scale-90 shadow-2xl cursor-pointer"
-                    >
-                      <div className="w-10 h-10 bg-[#5c5b30] rounded-full"></div>
-                    </button>
-                    <span className="font-technical text-white text-xs tracking-widest uppercase">Take Snapshot</span>
-                  </div>
-                </div>
-              )}
-            </AnimatePresence>
 
             {/* Polaroid Frame Wrapper */}
             <div 
@@ -959,8 +909,172 @@ export default function App() {
                 ref={imageContainerRef}
                 className={`bg-[#ebe1cf] w-full overflow-hidden relative border border-[#1f1b10]/10 shadow-inner group transition-all duration-300 ${ASPECT_RATIO_CONFIGS[aspectRatio].imgClass}`}
               >
-                
-                {image ? (
+                {isCameraActive ? (
+                  <>
+                    {/* Live Camera Stream */}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover transition-all"
+                      style={{ 
+                        filter: getFilterStyle(),
+                        transform: `${isCameraMirrored ? "scaleX(-1)" : "scaleX(1)"} translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${imageScale}) rotate(${imageRotation}deg)`,
+                        transformOrigin: "center center"
+                      }}
+                    />
+
+                    {/* Camera Control HUD Floating Overlay (Compact & High Contrast) */}
+                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-40 bg-stone-900/90 border border-white/20 backdrop-blur-sm p-1.5 rounded-lg select-none">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleCameraFacingMode(); }}
+                          className="bg-white/10 hover:bg-white/25 text-white font-technical text-[9px] uppercase font-bold px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          title="Ganti Lensa Depan/Belakang"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                          Lens
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleCameraMirror(); }}
+                          className="bg-white/10 hover:bg-white/25 text-white font-technical text-[9px] uppercase font-bold px-2 py-1 rounded-sm flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          title="Mirroring Lensa"
+                        >
+                          <Eye className="w-2.5 h-2.5" />
+                          Mirror
+                        </button>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); stopCamera(); }}
+                        className="bg-red-500/80 hover:bg-red-500 text-white font-technical text-[9px] uppercase font-bold px-2 py-1 rounded-sm flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                        title="Tutup Kamera"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                        Tutup
+                      </button>
+                    </div>
+
+                    {/* Capture Snapshot Action floating overlay */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); capturePhoto(); }}
+                        className="w-11 h-11 bg-white hover:bg-amber-50 active:scale-90 hover:scale-105 border-4 border-[#5c5b30] rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-all"
+                        title="Capture live portrait"
+                      >
+                        <div className="w-5 h-5 bg-[#5c5b30] rounded-full"></div>
+                      </button>
+                    </div>
+
+                    {/* Film Grain Layer (Opacity matches grain values) */}
+                    {adjustments.grain > 0 && (
+                      <div 
+                        className="absolute inset-0 pointer-events-none mix-blend-overlay z-20"
+                        style={{
+                          backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
+                          opacity: (adjustments.grain / 100) * 0.35
+                        }}
+                      ></div>
+                    )}
+
+                    {/* Vignette Shading Layer */}
+                    {adjustments.vignette > 0 && (
+                      <div 
+                        className="absolute inset-0 pointer-events-none z-20"
+                        style={{
+                          background: `radial-gradient(circle, transparent 40%, rgba(15,12,0,${(adjustments.vignette / 100) * 0.55}) 100%)`
+                        }}
+                      ></div>
+                    )}
+
+                    {/* Floating stickers canvas: Live rendering supports full interactivity during capture */}
+                    {stickers.map((sticker) => {
+                      const isActive = activeStickerId === sticker.id;
+                      const isDraggingThis = stickerDragState && stickerDragState.id === sticker.id;
+                      return (
+                        <div
+                          key={sticker.id}
+                          onPointerDown={(e) => handleStickerPointerDown(sticker.id, e)}
+                          onPointerMove={(e) => handleStickerPointerMove(sticker.id, e)}
+                          onPointerUp={(e) => handleStickerPointerUp(sticker.id, e)}
+                          onPointerCancel={(e) => handleStickerPointerUp(sticker.id, e)}
+                          className={`absolute cursor-move select-none flex items-center justify-center touch-none transition-shadow ${isActive ? "ring-2 ring-red-500/60 ring-offset-1 ring-offset-white/80 p-3 sm:p-1.5" : "p-2 hover:bg-white/10 rounded"}`}
+                          style={{
+                            left: `${sticker.x}%`,
+                            top: `${sticker.y}%`,
+                            transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg) scale(${sticker.scale})`,
+                            zIndex: isActive ? 40 : 30
+                          }}
+                        >
+                          {sticker.type === "emoji" ? (
+                            <span className="text-3xl filter drop-shadow-[#1f1b10]/20 drop-shadow-md select-none pointer-events-none">{sticker.value}</span>
+                          ) : sticker.type === "watercolor-cat" ? (
+                            /* Watercolor Cat Cutout rendered on preview frame */
+                            <div className="w-16 h-16 overflow-hidden rounded bg-transparent select-none pointer-events-none filter drop-shadow-md relative">
+                              <img
+                                src={catStickersSheet}
+                                alt="Watercolor cat cutout"
+                                className="absolute max-w-none"
+                                style={{
+                                  width: "400%",
+                                  height: "300%",
+                                  left: `-${getRowColFromCatValue(sticker.value).col * 100}%`,
+                                  top: `-${getRowColFromCatValue(sticker.value).row * 100}%`
+                                }}
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ) : (
+                            <div className="border-2 border-red-700/60 font-semibold px-2.5 py-0.5 text-[#ba1a1a] tracking-widest text-[9px] uppercase font-technical bg-white/95 rounded shadow-sm relative overflow-hidden flex items-center justify-center select-none rotate-2 pointer-events-none">
+                              {/* Slit grunge overlay on vintage stamps */}
+                              <div className="absolute top-0 bottom-0 left-1/4 w-[1px] bg-[#fff8f0]/40 rotate-12"></div>
+                              <div className="absolute top-0 bottom-0 left-3/4 w-[1px] bg-[#fff8f0]/40 -rotate-12"></div>
+                              {sticker.value}
+                            </div>
+                          )}
+
+                          {/* Control handle popup on click (hidden while dragging so user sees final position perfectly) */}
+                          {isActive && !isDraggingThis && (
+                            <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, -0.15); }}
+                                className="px-2 py-0.5 sm:px-1 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
+                                title="Smaller"
+                              >
+                                -
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, 0.15); }}
+                                className="px-2 py-0.5 sm:px-1.5 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
+                                title="Larger"
+                              >
+                                +
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); rotateSticker(sticker.id); }}
+                                className="px-2.5 py-0.5 sm:px-2 hover:text-amber-200 active:scale-125 touch-manipulation flex items-center text-sm sm:text-[11px]"
+                                title="Rotate"
+                              >
+                                🔄
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); removeSticker(sticker.id); }}
+                                className="px-2.5 py-0.5 sm:px-2 hover:text-red-400 text-red-300 active:scale-125 touch-manipulation flex items-center text-sm sm:text-[11px]"
+                                title="Discard"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : image ? (
                   <>
                     {/* Live Image */}
                     <img
@@ -1755,7 +1869,7 @@ export default function App() {
         <div className="flex items-center gap-2">
           <span className="font-technical uppercase text-[9px] text-stone-500 tracking-wider">Discord:</span>
           <a
-            href="https://discord.com/users/1tinnggg_"
+            href="https://discord.com/users/iggirafi"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 hover:bg-[#5865F2] hover:text-white hover:shadow-2xs transition-all font-mono font-bold text-xs"
