@@ -1039,7 +1039,10 @@ export default function App() {
 
                           {/* Control handle popup on click (hidden while dragging so user sees final position perfectly) */}
                           {isActive && !isDraggingThis && (
-                            <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none">
+                            <div 
+                              onPointerDown={(e) => e.stopPropagation()}
+                              className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none"
+                            >
                               <button
                                 onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, -0.15); }}
                                 className="px-2 py-0.5 sm:px-1 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
@@ -1158,7 +1161,10 @@ export default function App() {
 
                           {/* Control handle popup on click (hidden while dragging so user sees final position perfectly) */}
                           {isActive && !isDraggingThis && (
-                            <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none">
+                            <div 
+                              onPointerDown={(e) => e.stopPropagation()}
+                              className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-stone-950 text-white rounded-lg shadow-2xl px-2.5 py-1.5 sm:px-2 sm:py-1 text-sm sm:text-[11px] z-50 animate-fade-in divide-x divide-stone-800 border border-white/10 whitespace-nowrap touch-none select-none"
+                            >
                               <button
                                 onClick={(e) => { e.stopPropagation(); changeScale(sticker.id, -0.15); }}
                                 className="px-2 py-0.5 sm:px-1 hover:text-amber-200 active:scale-125 touch-manipulation font-bold text-lg sm:text-xs"
