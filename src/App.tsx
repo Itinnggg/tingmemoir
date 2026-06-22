@@ -486,7 +486,7 @@ export default function App() {
         baseFilter = "saturate(1.45) sepia(0.2) brightness(1.05) contrast(0.95) hue-rotate(-5deg)";
         break;
       default:
-        baseFilter = "none";
+        baseFilter = "";
     }
 
     const brightnessVal = adjustments.brightness / 100;
@@ -930,7 +930,7 @@ export default function App() {
                       ref={setVideoRef}
                       autoPlay
                       playsInline
-                      className="w-full h-full object-cover transition-all"
+                      className="w-full h-full object-cover"
                       style={{ 
                         filter: getFilterStyle(),
                         transform: `${isCameraMirrored ? "scaleX(-1)" : "scaleX(1)"} translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${imageScale}) rotate(${imageRotation}deg)`,
@@ -1098,7 +1098,7 @@ export default function App() {
                       src={image}
                       alt="Nostalgic snapshot"
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-all duration-300"
+                      className="w-full h-full object-cover"
                       style={{ 
                         filter: getFilterStyle(),
                         transform: `translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${imageScale}) rotate(${imageRotation}deg)`,
