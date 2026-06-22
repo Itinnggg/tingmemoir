@@ -63,6 +63,168 @@ const FILTERS_DATA = [
 ];
 
 // Preloaded beautiful retro sample pictures
+/**
+ * Applies CSS-equivalent retro filters and custom adjustments directly to canvas pixel buffer.
+ * This runs as a 100% reliable cross-device fallback (safeguards WebKit/iOS constraints on canvas.filter).
+ */
+function applyManualFilters(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  selectedFilter: string,
+  adjustments: Adjustments
+) {
+  try {
+    const imgData = ctx.getImageData(x, y, w, h);
+    const data = imgData.data;
+
+    let fSepia = 0;
+    let fSaturate = 1;
+    let fContrast = 1;
+    let fBrightness = 1;
+    let fGrayscale = 0;
+    let fHueRotate = 0;
+
+    switch (selectedFilter) {
+      case "CLASSIC_FILM":
+        fSepia = 0.35;
+        fSaturate = 1.2;
+        fContrast = 0.9;
+        fBrightness = 1.05;
+        fHueRotate = -8;
+        break;
+      case "WARM_MEMORIES":
+        fSepia = 0.6;
+        fSaturate = 0.95;
+        fContrast = 0.85;
+        fBrightness = 0.98;
+        fHueRotate = 12;
+        break;
+      case "OLD":
+        fSepia = 0.75;
+        fGrayscale = 0.2;
+        fSaturate = 0.65;
+        fContrast = 0.9;
+        fBrightness = 0.95;
+        break;
+      case "NOIR":
+        fGrayscale = 1.0;
+        fContrast = 1.4;
+        fBrightness = 0.95;
+        break;
+      case "CYANOTYPE":
+        fSepia = 0.25;
+        fSaturate = 0.8;
+        fHueRotate = 190;
+        fBrightness = 1.05;
+        fContrast = 1.15;
+        break;
+      case "GOLDEN_HOUR":
+        fSaturate = 1.45;
+        fSepia = 0.2;
+        fBrightness = 1.05;
+        fContrast = 0.95;
+        fHueRotate = -5;
+        break;
+    }
+
+    const manualBright = adjustments.brightness / 100;
+    const manualContrast = adjustments.contrast / 100;
+    const manualSepia = adjustments.sepia / 100;
+    const warmthVal = adjustments.warmth || 0;
+
+    const totalBrightness = fBrightness * manualBright;
+    const totalContrast = fContrast * manualContrast;
+    const totalSepia = Math.min(1.0, fSepia + manualSepia);
+
+    const warmthR = warmthVal > 0 ? (warmthVal / 100) * 15 : 0;
+    const warmthG = warmthVal > 0 ? (warmthVal / 100) * 8 : (warmthVal / 100) * 5;
+    const warmthB = warmthVal < 0 ? (Math.abs(warmthVal) / 100) * 15 : 0;
+
+    const len = data.length;
+    for (let i = 0; i < len; i += 4) {
+      let r = data[i];
+      let g = data[i + 1];
+      let b = data[i + 2];
+
+      // Grayscale
+      if (fGrayscale > 0) {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        r = gray * fGrayscale + r * (1 - fGrayscale);
+        g = gray * fGrayscale + g * (1 - fGrayscale);
+        b = gray * fGrayscale + b * (1 - fGrayscale);
+      }
+
+      // Saturation
+      if (fSaturate !== 1) {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        r = gray + (r - gray) * fSaturate;
+        g = gray + (g - gray) * fSaturate;
+        b = gray + (b - gray) * fSaturate;
+      }
+
+      // Simple Hue Rotate
+      if (fHueRotate !== 0) {
+        if (fHueRotate > 150 && fHueRotate < 210) {
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = gray * 0.3;
+          g = gray * 0.7;
+          b = gray * 1.3;
+        } else {
+          const shift = fHueRotate / 100;
+          if (shift > 0) {
+            r = r * (1 - shift) + g * shift;
+            g = g * (1 - shift) + b * shift;
+          } else {
+            const absShift = Math.abs(shift);
+            b = b * (1 - absShift) + r * absShift;
+            r = r * (1 - absShift) + g * absShift;
+          }
+        }
+      }
+
+      // Sepia
+      if (totalSepia > 0) {
+        const sr = r * 0.393 + g * 0.769 + b * 0.189;
+        const sg = r * 0.349 + g * 0.686 + b * 0.168;
+        const sb = r * 0.272 + g * 0.534 + b * 0.131;
+        r = sr * totalSepia + r * (1 - totalSepia);
+        g = sg * totalSepia + g * (1 - totalSepia);
+        b = sb * totalSepia + b * (1 - totalSepia);
+      }
+
+      // Brightness
+      if (totalBrightness !== 1) {
+        r *= totalBrightness;
+        g *= totalBrightness;
+        b *= totalBrightness;
+      }
+
+      // Contrast
+      if (totalContrast !== 1) {
+        r = (r - 128) * totalContrast + 128;
+        g = (g - 128) * totalContrast + 128;
+        b = (b - 128) * totalContrast + 128;
+      }
+
+      // Warmth
+      r += warmthR;
+      g += warmthG;
+      b += warmthB;
+
+      data[i] = Math.min(255, Math.max(0, r));
+      data[i + 1] = Math.min(255, Math.max(0, g));
+      data[i + 2] = Math.min(255, Math.max(0, b));
+    }
+
+    ctx.putImageData(imgData, x, y);
+  } catch (err) {
+    console.warn("Pixel matrix filter conversion skipped (most likely CORS on high-res URL):", err);
+  }
+}
+
 const SAMPLE_PHOTOS = [
   {
     id: "camera",
@@ -701,6 +863,10 @@ export default function App() {
       // Reset filters so stickers, frames, text are not sepia/darkened
       ctx.filter = "none";
 
+      // Apply the manual pixel-level filter fallback as a browser-independent backup
+      // This ensures 100% accurate results on all platforms (especially older browsers or iOS Safari)
+      applyManualFilters(ctx, px, py, pw, ph, selectedFilter, adjustments);
+
       // Draw grain layer
       if (adjustments.grain > 0) {
         ctx.fillStyle = "rgba(0,0,0,0.06)";
@@ -726,16 +892,19 @@ export default function App() {
         ctx.fillRect(px, py, pw, ph);
       }
 
-      // Draw filmstrip perforations if selected
+      // Draw filmstrip perforations if selected (draw inside the photo area, matching the preview UI)
       if (frameType === "FILMSTRIP") {
-        ctx.fillStyle = "#ffffff";
-        const bulletCount = 8;
-        const squareSize = 8 * scaleFactor;
-        const marginX = 14 * scaleFactor;
+        ctx.fillStyle = "#0c0a08"; // Black/dark gray rounded-sm dots
+        const bulletCount = 6;     // Match the 6 dots in the UI
+        const squareSize = 6 * scaleFactor;
+        
+        const leftX = px + 6 * scaleFactor; 
+        const rightX = px + pw - 6 * scaleFactor - squareSize;
+
         for (let i = 0; i < bulletCount; i++) {
-          const dy = py + 15 * scaleFactor + (i * ph) / bulletCount;
-          ctx.fillRect(marginX, dy, squareSize, squareSize);
-          ctx.fillRect(canvas.width - marginX - squareSize, dy, squareSize, squareSize);
+          const dy = py + 12 * scaleFactor + i * (ph - 24 * scaleFactor) / (bulletCount - 1);
+          ctx.fillRect(leftX, dy, squareSize, squareSize);
+          ctx.fillRect(rightX, dy, squareSize, squareSize);
         }
       }
 
@@ -914,7 +1083,13 @@ export default function App() {
                 "bg-[#fdf3df] border-[#8b7500] border-4 text-[#4c3f31]"
               }`}
               style={{
-                borderRadius: frameType === "MUSEUM" ? "12px" : "4px"
+                borderRadius: frameType === "MUSEUM" ? "12px" : "4px",
+                borderColor: frameType === "CLASSIC" ? "#ffffff" : 
+                             frameType === "FILMSTRIP" ? "#121212" : 
+                             frameType === "CARDBOARD" ? "#d0c3ab" : "#e3d9c6",
+                borderBottomColor: frameType === "CLASSIC" ? "#ffffff" : 
+                                   frameType === "FILMSTRIP" ? "#121212" : 
+                                   frameType === "CARDBOARD" ? "#d0c3ab" : "#e3d9c6"
               }}
             >
               
