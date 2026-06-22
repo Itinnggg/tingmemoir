@@ -333,6 +333,11 @@ export default function App() {
   // Aspect customizer state
   const [aspectRatio, setAspectRatio] = useState<"4:5" | "1:1" | "3:4" | "9:16">("4:5");
 
+  // Decorative border overlay
+const [decorBorder, setDecorBorder] = useState<
+  "NONE" | "FLORAL" | "FILM_EDGE" | "BOTANICAL" | "CUTE_DOODLE" | "WASHI"
+>("NONE");
+
   // Sticker placements
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [activeStickerId, setActiveStickerId] = useState<string | null>(null);
@@ -829,6 +834,9 @@ export default function App() {
         ctx.strokeRect(18 * scaleFactor, 18 * scaleFactor, canvas.width - 36 * scaleFactor, canvas.height - 36 * scaleFactor);
       }
 
+      // Draw decorative border overlay (on top of everything)
+      drawDecorBorder(ctx, canvas.width, canvas.height, scaleFactor);
+
       // Load original image safely
       const imgObj = new Image();
       imgObj.crossOrigin = "anonymous";
@@ -1014,6 +1022,269 @@ export default function App() {
       setIsSaving(false);
     }
   };
+  
+
+      // ─── Decorative Border Painter ───────────────────────────────────────────────
+const drawDecorBorder = (
+  ctx: CanvasRenderingContext2D,
+  canvasW: number,
+  canvasH: number,
+  scaleFactor: number
+) => {
+  if (decorBorder === "NONE") return;
+
+  const S = scaleFactor;
+  ctx.save();
+
+  if (decorBorder === "FLORAL") {
+    // Corner roses — 4 corners
+    const petalColors = ["#e8a0a0", "#f4c6c6", "#d4608a", "#f9dde0"];
+    const corners = [
+      { cx: 36 * S, cy: 36 * S },
+      { cx: canvasW - 36 * S, cy: 36 * S },
+      { cx: 36 * S, cy: canvasH - 36 * S },
+      { cx: canvasW - 36 * S, cy: canvasH - 36 * S },
+    ];
+    corners.forEach(({ cx, cy }) => {
+      // Leaves
+      [0, 90, 180, 270].forEach((angle) => {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((angle * Math.PI) / 180);
+        ctx.fillStyle = "#7ab648";
+        ctx.beginPath();
+        ctx.ellipse(0, -22 * S, 5 * S, 13 * S, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      // Petals
+      for (let p = 0; p < 5; p++) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((p * 72 * Math.PI) / 180);
+        ctx.fillStyle = petalColors[p % petalColors.length];
+        ctx.beginPath();
+        ctx.ellipse(0, -10 * S, 5 * S, 10 * S, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      // Center
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6 * S, 0, Math.PI * 2);
+      ctx.fillStyle = "#f9d56e";
+      ctx.fill();
+    });
+
+    // Thin elegant border line
+    ctx.strokeStyle = "#d4608a";
+    ctx.lineWidth = 2 * S;
+    ctx.setLineDash([6 * S, 4 * S]);
+    ctx.strokeRect(20 * S, 20 * S, canvasW - 40 * S, canvasH - 40 * S);
+    ctx.setLineDash([]);
+  }
+
+  else if (decorBorder === "FILM_EDGE") {
+    // Outer thick black film strip border
+    ctx.fillStyle = "#0a0a0a";
+    // Top strip
+    ctx.fillRect(0, 0, canvasW, 28 * S);
+    // Bottom strip
+    ctx.fillRect(0, canvasH - 28 * S, canvasW, 28 * S);
+    // Left strip
+    ctx.fillRect(0, 0, 22 * S, canvasH);
+    // Right strip
+    ctx.fillRect(canvasW - 22 * S, 0, 22 * S, canvasH);
+
+    // Sprocket holes — top & bottom
+    ctx.fillStyle = "#f5f0e8";
+    const holeW = 14 * S;
+    const holeH = 10 * S;
+    const holeCount = Math.floor(canvasW / (holeW * 2.5));
+    for (let i = 0; i < holeCount; i++) {
+      const hx = 18 * S + i * (canvasW - 36 * S) / (holeCount - 1) - holeW / 2;
+      // top holes
+      ctx.beginPath();
+      ctx.roundRect(hx, 9 * S, holeW, holeH, 2 * S);
+      ctx.fill();
+      // bottom holes
+      ctx.beginPath();
+      ctx.roundRect(hx, canvasH - 9 * S - holeH, holeW, holeH, 2 * S);
+      ctx.fill();
+    }
+
+    // Sprocket holes — left & right sides
+    const vHoleCount = Math.floor(canvasH / (holeH * 2.5));
+    for (let i = 0; i < vHoleCount; i++) {
+      const hy = 18 * S + i * (canvasH - 36 * S) / (vHoleCount - 1) - holeH / 2;
+      ctx.beginPath();
+      ctx.roundRect(6 * S, hy, holeH, holeW, 2 * S);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(canvasW - 6 * S - holeH, hy, holeH, holeW, 2 * S);
+      ctx.fill();
+    }
+
+    // Frame number text
+    ctx.fillStyle = "#f5f0e8";
+    ctx.font = `bold ${8 * S}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText("TINGMEMOIR  ▸  35mm  ▸  ISO 400", 30 * S, 20 * S);
+    ctx.textAlign = "right";
+    ctx.fillText(`© ${new Date().getFullYear()}`, canvasW - 30 * S, 20 * S);
+  }
+
+  else if (decorBorder === "BOTANICAL") {
+    // Soft green branch border around all 4 corners
+    const drawLeaf = (x: number, y: number, angle: number, size: number) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = `hsl(${100 + Math.random() * 30}, 50%, ${38 + Math.random() * 15}%)`;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 0.4, size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Midrib
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 1 * S;
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.lineTo(0, size);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    // Top-left cluster
+    for (let i = 0; i < 7; i++) {
+      drawLeaf(
+        20 * S + i * 9 * S,
+        14 * S + Math.sin(i) * 6 * S,
+        -0.6 + i * 0.15,
+        10 * S
+      );
+    }
+    for (let i = 0; i < 5; i++) {
+      drawLeaf(
+        14 * S + Math.sin(i) * 6 * S,
+        20 * S + i * 9 * S,
+        -1.2 + i * 0.15,
+        10 * S
+      );
+    }
+
+    // Bottom-right cluster (mirrored)
+    for (let i = 0; i < 7; i++) {
+      drawLeaf(
+        canvasW - 20 * S - i * 9 * S,
+        canvasH - 14 * S - Math.sin(i) * 6 * S,
+        Math.PI + 0.6 - i * 0.15,
+        10 * S
+      );
+    }
+    for (let i = 0; i < 5; i++) {
+      drawLeaf(
+        canvasW - 14 * S - Math.sin(i) * 6 * S,
+        canvasH - 20 * S - i * 9 * S,
+        Math.PI + 1.2 - i * 0.15,
+        10 * S
+      );
+    }
+
+    // Thin border
+    ctx.strokeStyle = "#5a7a3a";
+    ctx.lineWidth = 1.5 * S;
+    ctx.setLineDash([4 * S, 3 * S]);
+    ctx.strokeRect(18 * S, 18 * S, canvasW - 36 * S, canvasH - 36 * S);
+    ctx.setLineDash([]);
+  }
+
+  else if (decorBorder === "CUTE_DOODLE") {
+    // Stars, hearts, sparkles scattered along border
+    const items = [
+      { x: 0.05, y: 0.05, icon: "⭐", size: 16 },
+      { x: 0.5,  y: 0.02, icon: "💖", size: 14 },
+      { x: 0.95, y: 0.05, icon: "✨", size: 16 },
+      { x: 0.02, y: 0.5,  icon: "🌸", size: 14 },
+      { x: 0.98, y: 0.5,  icon: "🌙", size: 14 },
+      { x: 0.05, y: 0.95, icon: "🍭", size: 16 },
+      { x: 0.5,  y: 0.98, icon: "🎀", size: 14 },
+      { x: 0.95, y: 0.95, icon: "⭐", size: 16 },
+      { x: 0.25, y: 0.01, icon: "💫", size: 12 },
+      { x: 0.75, y: 0.01, icon: "🌟", size: 12 },
+      { x: 0.25, y: 0.99, icon: "🍬", size: 12 },
+      { x: 0.75, y: 0.99, icon: "💝", size: 12 },
+      { x: 0.01, y: 0.25, icon: "🌷", size: 12 },
+      { x: 0.01, y: 0.75, icon: "🦋", size: 12 },
+      { x: 0.99, y: 0.25, icon: "🍀", size: 12 },
+      { x: 0.99, y: 0.75, icon: "🌺", size: 12 },
+    ];
+    items.forEach(({ x, y, icon, size }) => {
+      ctx.font = `${size * S}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(icon, x * canvasW, y * canvasH);
+    });
+
+    // Dotted playful border
+    ctx.strokeStyle = "#ff85a1";
+    ctx.lineWidth = 2.5 * S;
+    ctx.setLineDash([5 * S, 5 * S]);
+    ctx.strokeRect(22 * S, 22 * S, canvasW - 44 * S, canvasH - 44 * S);
+    ctx.setLineDash([]);
+  }
+
+  else if (decorBorder === "WASHI") {
+    // Washi tape strips at 4 corners — diagonal colorful tape
+    const tapes = [
+      { x: 0, y: 0, angle: 45, color: "#f9d56e", pattern: "#f5c842" },
+      { x: canvasW, y: 0, angle: -45, color: "#a8d8ea", pattern: "#89c4d9" },
+      { x: 0, y: canvasH, angle: -45, color: "#f7a8c4", pattern: "#f490b0" },
+      { x: canvasW, y: canvasH, angle: 45, color: "#b8e0b0", pattern: "#9dd494" },
+    ];
+
+    tapes.forEach(({ x, y, angle, color, pattern }) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((angle * Math.PI) / 180);
+
+      const tapeW = 55 * S;
+      const tapeH = 20 * S;
+
+      // Base tape color
+      ctx.fillStyle = color + "cc"; // semi-transparent
+      ctx.fillRect(-tapeW / 2, -tapeH / 2, tapeW, tapeH);
+
+      // Stripe pattern
+      ctx.strokeStyle = pattern + "88";
+      ctx.lineWidth = 3 * S;
+      for (let i = -tapeW / 2; i < tapeW / 2; i += 8 * S) {
+        ctx.beginPath();
+        ctx.moveTo(i, -tapeH / 2);
+        ctx.lineTo(i, tapeH / 2);
+        ctx.stroke();
+      }
+
+      // Torn edge effect (top & bottom jagged)
+      ctx.fillStyle = color + "55";
+      ctx.beginPath();
+      for (let tx = -tapeW / 2; tx <= tapeW / 2; tx += 4 * S) {
+        ctx.lineTo(tx, -tapeH / 2 + (Math.sin(tx * 0.5) * 2 * S));
+      }
+      ctx.lineTo(tapeW / 2, tapeH / 2);
+      ctx.lineTo(-tapeW / 2, tapeH / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    });
+
+    // Light inner border
+    ctx.strokeStyle = "rgba(180,140,80,0.4)";
+    ctx.lineWidth = 1.5 * S;
+    ctx.strokeRect(24 * S, 24 * S, canvasW - 48 * S, canvasH - 48 * S);
+  }
+
+  ctx.restore();
+};
 
   return (
     <div className="bg-analog-bg text-analog-on-surface min-h-screen flex flex-col font-mono relative overflow-x-hidden selection:bg-analog-primary-container selection:text-white">
@@ -1809,6 +2080,39 @@ export default function App() {
                 </div>
 
                 <div className="border-t border-analog-outline-variant/20 pt-1"></div>
+
+                {/* ── Decorative Border Picker ── */}
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="font-serif font-bold text-lg text-analog-primary">Decorative Borders</h3>
+                    <p className="font-mono text-xs text-analog-on-surface-variant/70 mt-1">
+                      Hiasan border lucu & vintage untuk hasil foto kamu.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {[
+                      { id: "NONE",        label: "✕ None",         desc: "Tanpa border" },
+                      { id: "FLORAL",      label: "🌸 Floral",       desc: "Bunga sudut vintage" },
+                      { id: "FILM_EDGE",   label: "🎞️ Film Edge",    desc: "Strip film 35mm" },
+                      { id: "BOTANICAL",   label: "🍃 Botanical",    desc: "Daun & ranting" },
+                      { id: "CUTE_DOODLE", label: "⭐ Cute Doodle",  desc: "Bintang & hati lucu" },
+                      { id: "WASHI",       label: "🎨 Washi Tape",   desc: "Tape sudut warna-warni" },
+                    ].map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => setDecorBorder(b.id as any)}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          decorBorder === b.id
+                            ? "border-[#5c5b30] bg-[#5c5b30]/10 shadow-sm"
+                            : "border-analog-outline-variant/30 bg-white hover:border-analog-outline hover:bg-stone-50"
+                        }`}
+                      >
+                        <div className="font-technical text-[10px] font-bold tracking-wide text-analog-on-surface">{b.label}</div>
+                        <div className="font-mono text-[9px] text-analog-on-surface-variant/60 mt-0.5">{b.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div>
                   <h3 className="font-serif font-bold text-lg text-analog-primary">Cartridge Bezels</h3>
